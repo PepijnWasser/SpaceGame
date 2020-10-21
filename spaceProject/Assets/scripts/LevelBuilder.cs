@@ -1,7 +1,9 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
-
+using UnityEditor;
+using Unity.EditorCoroutines.Editor;
 using UnityEngine;
 
 public class LevelBuilder : MonoBehaviour
@@ -15,7 +17,7 @@ public class LevelBuilder : MonoBehaviour
 	public Vector2 minMaxRooms = new Vector2(3, 10);
 	public Vector2 spawnableArea = new Vector2(20, 20);
 
-	List<Doorway> availableDoorways = new List<Doorway>();
+	public List<Doorway> availableDoorways = new List<Doorway>();
 
 	public Dictionary<Doorway, Doorway> removedDoorDoorDictionary = new Dictionary<Doorway, Doorway>();
 
@@ -25,7 +27,7 @@ public class LevelBuilder : MonoBehaviour
 	LayerMask roomLayerMask;
 	Color roomColor;
 
-	bool caroutineRunning = false;
+	Room NewestRoom;
 
 	void Start()
 	{
@@ -35,12 +37,8 @@ public class LevelBuilder : MonoBehaviour
 
 	IEnumerator GenerateLevel()
 	{
-		caroutineRunning = true;
 		roomColor = Random.ColorHSV();
-		WaitForSeconds startup = new WaitForSeconds(1);
 		WaitForFixedUpdate interval = new WaitForFixedUpdate();
-
-		yield return startup;
 
 		Debug.Log("\n\n");
         if (spawnStartRoom)
@@ -61,18 +59,13 @@ public class LevelBuilder : MonoBehaviour
 		{
 			// Place random room from list
 			SpawnRoom();
+			RemoveDoorsInSameSpace();
 			yield return interval;
 		}
 
-		RemoveDoorsInSameSpace();
-		TestRoomRemoval();
-
-		// Level generation finished
-		Debug.Log("Level generation finished");
-
-
-		yield return new WaitForSeconds(3);
+		//yield return new WaitForSeconds(3);
 		//ResetLevelGenerator ();
+		StopCoroutine("GenerateLevel");
 	}
 
 	void PlaceConsoleRoom()
@@ -108,7 +101,7 @@ public class LevelBuilder : MonoBehaviour
 			currentRoom.transform.parent = this.transform;
 
 			//give it a color
-			currentRoom.GetComponentInChildren<Renderer>().material.color = roomColor;
+			currentRoom.GetComponentInChildren<Renderer>().sharedMaterial.color = roomColor;
 
 			List<Doorway> allAvailableDoorways = new List<Doorway>(availableDoorways);
 			AddDoorwaysToList(currentRoom, ref availableDoorways);
@@ -145,6 +138,7 @@ public class LevelBuilder : MonoBehaviour
 
 						// Add room to list
 						placedRooms.Add(currentRoom);
+						NewestRoom = currentRoom;
 
 						// Remove occupied doorways
 						newDoorwayToTest.gameObject.SetActive(false);
@@ -217,45 +211,62 @@ public class LevelBuilder : MonoBehaviour
 
 	void PositionRoomAtDoorway(ref Room room, Doorway roomDoorway, Doorway targetDoorway)
 	{
+
 		// Reset room position and rotation
 		room.transform.position = Vector3.zero;
 		room.transform.rotation = Quaternion.identity;
 
 		// Rotate room to match previous doorway orientation
 		Vector3 targetDoorwayEuler = targetDoorway.transform.eulerAngles;
+		targetDoorwayEuler.y = Mathf.Round(targetDoorwayEuler.y * 100.0f) * 0.01f;
+
 		Vector3 roomDoorwayEuler = roomDoorway.transform.eulerAngles;
 		float deltaAngle = Mathf.DeltaAngle(roomDoorwayEuler.y, targetDoorwayEuler.y);
-		Quaternion currentRoomTargetRotation = Quaternion.AngleAxis(deltaAngle, Vector3.up);
-		room.transform.rotation = currentRoomTargetRotation * Quaternion.Euler(0, 180f, 0);
+		Quaternion RotationToCompensateDeltaAngle = Quaternion.AngleAxis(deltaAngle, Vector3.up);
+		room.transform.rotation = (RotationToCompensateDeltaAngle * Quaternion.Euler(0, 180f, 0));
+
+		Quaternion roomRotation = room.transform.rotation;
+		roomRotation = Quaternion.Euler(0.0f, Mathf.Round(roomRotation.eulerAngles.y * 100.0f) * 0.01f, 0.0f);
+		room.transform.rotation = roomRotation;
+
 
 		// Position room
 		Vector3 roomPositionOffset = roomDoorway.transform.position - room.transform.position;
-		room.transform.position = targetDoorway.transform.position - roomPositionOffset;
+		Vector3 newVec = targetDoorway.transform.position - roomPositionOffset;
+		newVec = new Vector3(Mathf.Round(newVec.x * 100.0f) * 0.01f, Mathf.Round(newVec.y * 100.0f) * 0.01f, Mathf.Round(newVec.z * 100.0f) * 0.01f);
+
+		room.transform.position = newVec;
 	}
+	
 
 	bool CheckRoomOverlap(Room room)
 	{
-		Bounds bounds = room.RoomBounds;
-		bounds.center = room.transform.position;
-		bounds.Expand(-0.1f);
-
-		Collider[] colliders = Physics.OverlapBox(bounds.center, bounds.size / 2, room.transform.rotation, roomLayerMask);
-		if (colliders.Length > 0)
-		{
-			// Ignore collisions with current room
-			foreach (Collider c in colliders)
+		Bounds[] bounds = room.RoomBounds.ToArray();
+		for(int i = 0; i < bounds.Count(); i++)
+        {
+			bounds[i].center = room.transform.position;
+			bounds[i].Expand(-0.1f);
+		}
+		for(int i = 0; i < bounds.Count(); i++)
+        {
+			Collider[] colliders = Physics.OverlapBox(bounds[i].center, bounds[i].size / 2, room.transform.rotation, roomLayerMask);
+			if (colliders.Length > 0)
 			{
-				if (c.transform.parent.gameObject.Equals(room.gameObject))
+				// Ignore collisions with current room
+				foreach (Collider c in colliders)
 				{
-					continue;
-				}
-				else
-				{
-					return true;
+					if (c.transform.parent.gameObject.Equals(room.gameObject))
+					{
+						continue;
+					}
+					else
+					{
+						return true;
+					}
 				}
 			}
-		}
 
+		}
 		return false;
 	}
 
@@ -290,7 +301,7 @@ public class LevelBuilder : MonoBehaviour
 			foreach(Doorway doorway2 in allAvailableDoorways)
             {
 				//remove doorways if position is the same
-				if (doorway.transform.position == doorway2.transform.position && doorway != doorway2)
+				if ((doorway.transform.position - doorway2.transform.position).magnitude < 0.001 && doorway != doorway2)
                 {
 					doorway.gameObject.SetActive(false);
 					availableDoorways.Remove(doorway);
@@ -308,19 +319,17 @@ public class LevelBuilder : MonoBehaviour
 
 		StopCoroutine("GenerateLevel");
 
-		caroutineRunning = false;
-
 		// Delete all rooms
 		if (consoleRoom)
 		{
-			Destroy(consoleRoom.gameObject);
+			DestroyImmediate(consoleRoom.gameObject);
 		}
 
 		foreach (Room room in placedRooms)
 		{
 			if(room != null)
             {
-				Destroy(room.gameObject);
+				 DestroyImmediate(room.gameObject);
 			}
 		}
 
@@ -329,17 +338,15 @@ public class LevelBuilder : MonoBehaviour
 		availableDoorways.Clear();
 		removedDoorDoorDictionary.Clear();
 
-		// Reset coroutine
-		StartCoroutine("GenerateLevel");
+		// Restart coroutine
+		EditorCoroutineUtility.StartCoroutineOwnerless(GenerateLevel());
 	}
 
 	void TestRoomRemoval()
 	{
-		Debug.Log("1");
 		Dictionary<Doorway, Doorway> removedDoorDoorCopy = new Dictionary<Doorway, Doorway>(removedDoorDoorDictionary);
 		foreach (KeyValuePair<Doorway, Doorway> keyValue in removedDoorDoorCopy)
 		{
-			Debug.Log("2");
 			Doorway doorKey = null;
 			Doorway doorValue = null;
 
@@ -352,38 +359,59 @@ public class LevelBuilder : MonoBehaviour
             {
 				doorValue = keyValue.Value;
 			}
+
 			if(doorValue == null || doorKey == null)
             {
-				Debug.Log("3");
 				if(doorValue == null)
                 {
+					Debug.Log("doorValue was nul");
 					doorKey.gameObject.SetActive(true);
+					availableDoorways.Add(doorKey);
                 }
                 else
                 {
+					Debug.Log("doorKey was nul");
 					doorValue.gameObject.SetActive(true);
+					availableDoorways.Add(doorValue);
                 }
 				removedDoorDoorDictionary.Remove(doorKey);
             }
-
 		}
+		List<Doorway> doorwaysToRemove = new List<Doorway>();
+		foreach(Doorway doorway in availableDoorways)
+        {
+			if(doorway == null)
+            {
+				doorwaysToRemove.Add(doorway);
+            }
+        }
+		foreach(Doorway doorway in doorwaysToRemove)
+        {
+			availableDoorways.Remove(doorway);
+        }
+		doorwaysToRemove.Clear();
 	}
 
 	public void GenerateNewLevel()
     {
 		roomLayerMask = LayerMask.GetMask("Room");
-        if (caroutineRunning)
-        {
-			ResetLevelGenerator();
-        }
-        else
-        {
-			//StartCoroutine("GenerateLevel");
-		}
+		ResetLevelGenerator();
     }
 
     private void Update()
     {
 		TestRoomRemoval();
-    }
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+			SpawnRoom();
+			RemoveDoorsInSameSpace();
+        }
+		if (Input.GetKeyDown(KeyCode.Z))
+		{
+			if(NewestRoom != null)
+            {
+				Destroy(NewestRoom.gameObject);
+			}
+		}
+	}
 }

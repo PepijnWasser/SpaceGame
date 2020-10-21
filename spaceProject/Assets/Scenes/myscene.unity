@@ -208,7 +208,7 @@ Transform:
   m_GameObject: {fileID: 49910692}
   m_LocalRotation: {x: 0.40821788, y: -0.23456968, z: 0.10938163, w: 0.8754261}
   m_LocalPosition: {x: 0, y: 3, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 1, y: 1, z: 0.99999994}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 1
@@ -327,15 +327,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   spawnStartRoom: 1
   startdoor: {fileID: 0}
-  startRoomPrefab: {fileID: 7126196467614031106, guid: ec01242789f815e40822be77f18df67f,
+  startRoomPrefab: {fileID: 7715304257555048534, guid: 80d1156a8e7544947b59dff8dc299793,
     type: 3}
   roomPrefabs:
-  - {fileID: 7888373041654438102, guid: 8047735b6b64af046b4a5055967ba599, type: 3}
+  - {fileID: 2215158253847928660, guid: 3180c55bec898fb46b4a46438c160d24, type: 3}
   - {fileID: -6589011042876111745, guid: 14411880f63b2c44ea65fdd6a0fe3599, type: 3}
-  - {fileID: 5871910492529827508, guid: 9b1a4ca5b918a3f48999574ac42ba96b, type: 3}
-  - {fileID: 6244608758372684928, guid: 89953825d430b804ca5729f418f65cd8, type: 3}
-  minMaxRooms: {x: 10, y: 10}
-  spawnableArea: {x: 20, y: 20}
+  - {fileID: 4951030012827289384, guid: 0b9e47aa451474247862a70b6f0353fb, type: 3}
+  - {fileID: 6356993594536282373, guid: 63292158d7605584381add2c6aafeaaa, type: 3}
+  minMaxRooms: {x: 20, y: 20}
+  spawnableArea: {x: 300, y: 300}
+  availableDoorways: []
 --- !u!4 &1997148555
 Transform:
   m_ObjectHideFlags: 0
@@ -344,7 +345,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1997148553}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -16.434093, y: 35.007164, z: 4.3619814}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}

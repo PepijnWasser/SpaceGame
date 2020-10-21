@@ -144,7 +144,8 @@ MonoBehaviour:
   doorways:
   - {fileID: 8985655431189929043}
   - {fileID: 1338650520406255253}
-  meshCollider: {fileID: 885561048443432100}
+  meshcolliders:
+  - {fileID: 885561048443432100}
 --- !u!1 &5955972043580582103
 GameObject:
   m_ObjectHideFlags: 0
